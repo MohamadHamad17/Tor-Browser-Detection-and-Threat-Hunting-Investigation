@@ -44,54 +44,56 @@ DeviceFileEvents
 
 ### 2. Searched the `DeviceProcessEvents` Table
 
-Searched for any `ProcessCommandLine` that contained the string "tor-browser-windows-x86_64-portable-14.0.1.exe". Based on the logs returned, at `2024-11-08T22:16:47.4484567Z`, an employee on the "threat-hunt-lab" device ran the file `tor-browser-windows-x86_64-portable-14.0.1.exe` from their Downloads folder, using a command that triggered a silent installation.
+Searched the DeviceProcessEvents table for any process involving the Tor installer tor-browser-windows-x86_64-portable-14.5.4.exe on device desktop-jdoe-vm. Found that the installer was executed by the employee at the company, with events starting at 2025-07-22T00:29:44Z. Queried for timestamp, device, account, action, file name, path, SHA256, and command line used. Events were sorted by time.
 
 **Query used to locate event:**
 
 ```kql
 
-DeviceProcessEvents  
-| where DeviceName == "threat-hunt-lab"  
-| where ProcessCommandLine contains "tor-browser-windows-x86_64-portable-14.0.1.exe"  
+DeviceProcessEvents
+| where DeviceName == "desktop-jdoe-vm"
+| where ProcessCommandLine startswith "tor-browser-windows-x86_64-portable-14.5.4.exe"
 | project Timestamp, DeviceName, AccountName, ActionType, FileName, FolderPath, SHA256, ProcessCommandLine
+| order by Timestamp desc 
 ```
-<img width="1212" alt="image" src="https://github.com/user-attachments/assets/b07ac4b4-9cb3-4834-8fac-9f5f29709d78">
+<img width="1262" height="231" alt="Screenshot 2025-07-22 at 9 08 19 PM" src="https://github.com/user-attachments/assets/b0f8ec75-6c3b-4464-8d7f-91e434f0caf5" />
 
 ---
 
 ### 3. Searched the `DeviceProcessEvents` Table for TOR Browser Execution
 
-Searched for any indication that user "employee" actually opened the TOR browser. There was evidence that they did open it at `2024-11-08T22:17:21.6357935Z`. There were several other instances of `firefox.exe` (TOR) as well as `tor.exe` spawned afterwards.
+Searched the DeviceProcessEvents table for any indication that user "employee" actually opened the Tor browser. Found evidence that it was launched at 2025-07-22T00:31:53Z. There were several other instances of firefox.exe (Tor) as well as Tor.exe spawned after
 
 **Query used to locate events:**
 
 ```kql
-DeviceProcessEvents  
-| where DeviceName == "threat-hunt-lab"  
-| where FileName has_any ("tor.exe", "firefox.exe", "tor-browser.exe")  
-| project Timestamp, DeviceName, AccountName, ActionType, FileName, FolderPath, SHA256, ProcessCommandLine  
+DeviceProcessEvents
+| where DeviceName == "desktop-jdoe-vm"
+| where FileName has_any ("tor.exe", "firefox.exe", "tor-browser.exe", "start-tor-browser.exe", "torbrowser-install-win64.exe", "torbrowser-install-win32.exe", "tor-browser-windows-x86_64-portable.exe")
+| project Timestamp, DeviceName, AccountName, ActionType, FileName, FolderPath, SHA256, ProcessCommandLine
 | order by Timestamp desc
+
 ```
-<img width="1212" alt="image" src="https://github.com/user-attachments/assets/b13707ae-8c2d-4081-a381-2b521d3a0d8f">
+<img width="1262" height="465" alt="Screenshot 2025-07-22 at 9 09 39 PM" src="https://github.com/user-attachments/assets/8363507c-cab3-4349-b848-3103fb137348" />
 
 ---
 
 ### 4. Searched the `DeviceNetworkEvents` Table for TOR Network Connections
 
-Searched for any indication the TOR browser was used to establish a connection using any of the known TOR ports. At `2024-11-08T22:18:01.1246358Z`, an employee on the "threat-hunt-lab" device successfully established a connection to the remote IP address `176.198.159.33` on port `9001`. The connection was initiated by the process `tor.exe`, located in the folder `c:\users\employee\desktop\tor browser\browser\torbrowser\tor\tor.exe`. There were a couple of other connections to sites over port `443`.
+Searched the DeviceNetworkEvents table on device desktop-jdoe-vm, filtering out system-level activity. Focused on known Tor-related ports (9001, 9030, 9040, 9050, 9051, 9150) to detect potential Tor network traffic. Queried for timestamp, device name, user account, connection details (IP and port), URL, and the process that initiated the connection. Results were sorted by most recent activity. Confirmed that the Tor browser made a successful connection from desktop-jdoe-vm under the user "employee" on July 21, 2025, at 8:34:07 PM. The connection was made to 127.0.0.1 on port 9150, using the process firefox.exe, indicating Tor was likely running on this computer.indicating use outside the the browser There were a couple of other connections to sites over port `443` indicating use outside the the browser.
 
 **Query used to locate events:**
 
 ```kql
-DeviceNetworkEvents  
-| where DeviceName == "threat-hunt-lab"  
-| where InitiatingProcessAccountName != "system"  
-| where InitiatingProcessFileName in ("tor.exe", "firefox.exe")  
-| where RemotePort in ("9001", "9030", "9040", "9050", "9051", "9150", "80", "443")  
-| project Timestamp, DeviceName, InitiatingProcessAccountName, ActionType, RemoteIP, RemotePort, RemoteUrl, InitiatingProcessFileName, InitiatingProcessFolderPath  
+DeviceNetworkEvents
+| where DeviceName == "desktop-jdoe-vm"
+| where InitiatingProcessAccountName != "system"
+| where InitiatingProcessFileName in ("tor.exe", "firefox.exe")
+| where RemotePort in (9001, 9030, 9040, 9050, 9051, 9150, 80, 443)
+| project Timestamp, DeviceName, InitiatingProcessAccountName, ActionType, RemoteIP, RemotePort, RemoteUrl, InitiatingProcessFileName, InitiatingProcessFolderPath
 | order by Timestamp desc
 ```
-<img width="1212" alt="image" src="https://github.com/user-attachments/assets/87a02b5b-7d12-4f53-9255-f5e750d0e3cb">
+<img width="1262" height="465" alt="Screenshot 2025-07-22 at 9 11 16 PM" src="https://github.com/user-attachments/assets/e680da59-4460-4f7b-be79-08406e25aa89" />
 
 ---
 
